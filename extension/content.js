@@ -2201,3 +2201,209 @@ function stopTalkTimer() {
   }
   currentSpeaker = null;
 }
+
+// === AGENDA & PERFORMANCE DASHBOARD SIDEBAR ===
+let agendaSidebar = null;
+
+function ensureAgendaSidebar() {
+  if (agendaSidebar) return agendaSidebar;
+  agendaSidebar = document.createElement('div');
+  agendaSidebar.id = 'windsurf-agenda-sidebar';
+  agendaSidebar.style.cssText = `
+    position: fixed;
+    top: 40px;
+    right: 32px;
+    width: 320px;
+    min-height: 420px;
+    background: #181c1f;
+    color: #fff;
+    border-radius: 18px;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.18);
+    z-index: 2147483647;
+    font-family: 'Google Sans', Roboto, Arial, sans-serif;
+    padding: 2.2rem 2.2rem 1.5rem 2.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    align-items: flex-start;
+    opacity: 0.98;
+  `;
+  document.body.appendChild(agendaSidebar);
+  return agendaSidebar;
+}
+
+function renderAgendaSidebar() {
+  const sidebar = ensureAgendaSidebar();
+  // Mood color
+  const moodColors = { positive: '#4CAF50', neutral: '#FFD700', negative: '#F44336' };
+  // Topic status icons
+  const getStatusIcon = (topic) => {
+    if (window['mentionedTopics'] && window['mentionedTopics'].has(topic)) return '✅';
+    return '🟡';
+  };
+  // Talk time bar
+  const totalTime = (typeof repSpeakingTime === 'number' && typeof prospectSpeakingTime === 'number') ? (repSpeakingTime + prospectSpeakingTime || 1) : 1;
+  const repPct = Math.round((repSpeakingTime / totalTime) * 100);
+  const prospectPct = 100 - repPct;
+  // Build HTML
+  sidebar.innerHTML = `
+    <div style="font-size:1.25em;font-weight:700;margin-bottom:0.2em;display:flex;align-items:center;gap:0.5em;">
+      <span>🏆</span> Agenda
+    </div>
+    <div style="margin-bottom:0.7em;">
+      <div style="font-size:1.08em;font-weight:600;">O. Objective</div>
+      <div style="font-size:1.08em;color:#fff;opacity:0.92;">${window['callObjective'] || '<span style=\'color:#888\'>No objective set</span>'}</div>
+    </div>
+    <div style="margin-bottom:0.7em;">
+      <div style="font-size:1.08em;font-weight:600;">1. Topics</div>
+      <ul style="list-style:none;padding:0;margin:0;">
+        ${(window['keyTopics'] || []).map((topic, i) => `<li style='margin-bottom:0.3em;display:flex;align-items:center;gap:0.7em;'><span>${i+1}.</span><span>${topic}</span><span>${getStatusIcon(topic)}</span></li>`).join('')}
+      </ul>
+    </div>
+    <div style="margin-bottom:0.7em;">
+      <div style="font-size:1.08em;font-weight:600;">Mood: <span style='color:${moodColors[window['currentMood'] || 'neutral']};'>${window['currentMood'] ? window['currentMood'].charAt(0).toUpperCase() + window['currentMood'].slice(1) : 'Neutral'}</span></div>
+      <span style='display:inline-block;width:16px;height:16px;border-radius:50%;background:${moodColors[window['currentMood'] || 'neutral']};margin-left:4px;vertical-align:middle;'></span>
+    </div>
+    <div style="margin-bottom:0.7em;">
+      <div style="font-size:1.08em;font-weight:600;">Talk Meter</div>
+      <div style='width:100%;height:12px;background:#222;border-radius:6px;overflow:hidden;display:flex;'>
+        <div style='background:#4CAF50;width:${repPct}%;height:100%;'></div>
+        <div style='background:#222;width:${prospectPct}%;height:100%;'></div>
+      </div>
+      <div style='font-size:0.98em;margin-top:0.2em;'><span style='color:#4CAF50;'>Rep: ${formatTime(repSpeakingTime)}</span> &nbsp; <span style='color:#fff;'>|</span> &nbsp; <span style='color:#F44336;'>Prospect: ${formatTime(prospectSpeakingTime)}</span></div>
+    </div>
+  `;
+}
+
+// Hook renderAgendaSidebar into relevant update functions
+function hookSidebarRenders() {
+  if (typeof updateMoodIndicator === 'function') {
+    const origUpdateMoodIndicator = updateMoodIndicator;
+    window.updateMoodIndicator = function(sentiment) {
+      origUpdateMoodIndicator(sentiment);
+      renderAgendaSidebar();
+    };
+  }
+  if (typeof updateTalkTimeMeter === 'function') {
+    const origUpdateTalkTimeMeter = updateTalkTimeMeter;
+    window.updateTalkTimeMeter = function() {
+      origUpdateTalkTimeMeter();
+      renderAgendaSidebar();
+    };
+  }
+  if (typeof window['detectMentionedTopics'] === 'function') {
+    const origDetectMentionedTopics = window['detectMentionedTopics'];
+    window['detectMentionedTopics'] = function(text) {
+      origDetectMentionedTopics(text);
+      renderAgendaSidebar();
+    };
+  }
+}
+
+// Call this after all functions are defined
+setTimeout(hookSidebarRenders, 1000);
+
+/**
+ * @type {string}
+ */
+window['callObjective'] = '';
+/**
+ * @type {string[]}
+ */
+window['keyTopics'] = [];
+/**
+ * @type {Set<string>}
+ */
+window['mentionedTopics'] = new Set();
+/**
+ * @type {string}
+ */
+window['currentMood'] = 'neutral';
+let lastTopicReminderTimestamp = 0;
+
+// === PRE-CALL SETUP UI ===
+function showPreCallSetup() {
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2147483647;
+  `;
+  const content = document.createElement('div');
+  content.style.cssText = `
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 400px;
+  `;
+  content.innerHTML = `
+    <h2>Pre-Call Setup</h2>
+    <div style="margin-bottom: 1rem;">
+      <label for="windsurf-call-objective">Call Objective:</label>
+      <input type="text" id="windsurf-call-objective" style="width: 100%; padding: 0.5rem;" placeholder="e.g., Close the deal">
+    </div>
+    <div style="margin-bottom: 1rem;">
+      <label for="windsurf-key-topics">Key Topics (comma-separated):</label>
+      <input type="text" id="windsurf-key-topics" style="width: 100%; padding: 0.5rem;" placeholder="e.g., pricing, differentiation with cursor, security">
+    </div>
+    <button id="windsurf-precall-save" style="padding: 0.5rem 1rem; background: #4CAF50; color: white; border: none; border-radius: 4px;">Save</button>
+  `;
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+
+  const saveBtn = document.getElementById('windsurf-precall-save');
+  if (saveBtn) {
+    saveBtn.onclick = () => {
+      const objInput = document.getElementById('windsurf-call-objective');
+      const topicsInput = document.getElementById('windsurf-key-topics');
+      if (objInput && 'value' in objInput && topicsInput && 'value' in topicsInput) {
+        window['callObjective'] = (objInput instanceof HTMLInputElement ? objInput.value.trim() : '') || 'Close the deal';
+        window['keyTopics'] = (topicsInput instanceof HTMLInputElement ? topicsInput.value.split(',').map(t => t.trim()).filter(Boolean) : []) || ['pricing', 'differentiation with cursor', 'security'];
+        window['mentionedTopics'] = new Set();
+        if (modal) modal.remove();
+      }
+    };
+  }
+}
+
+// Call showPreCallSetup when the extension loads
+setTimeout(showPreCallSetup, 1000);
+
+// Function to detect mentioned topics in transcript
+function detectMentionedTopics(text) {
+  if (!text || !window['keyTopics']) return;
+  
+  const lowercaseText = text.toLowerCase();
+  window['keyTopics'].forEach(topic => {
+    // Create variations of the topic for fuzzy matching
+    const variations = [
+      topic.toLowerCase(),
+      topic.replace(/\s+/g, ''),  // no spaces
+      topic.replace(/\s+/g, '-'), // hyphenated
+    ];
+    
+    // Check if any variation is mentioned in the text
+    if (variations.some(v => lowercaseText.includes(v))) {
+      window['mentionedTopics'].add(topic);
+      renderAgendaSidebar(); // Update the sidebar to show the checkmark
+    }
+  });
+}
+
+// Ensure detectMentionedTopics is called during transcript processing
+function hookUpdateTranscriptOverlay() {
+  const origUpdateTranscriptOverlay = updateTranscriptOverlay;
+  window['updateTranscriptOverlay'] = function(text) {
+    return Promise.resolve(origUpdateTranscriptOverlay(text)).then(() => {
+      detectMentionedTopics(text);
+    });
+  };
+}
+setTimeout(hookUpdateTranscriptOverlay, 1000);

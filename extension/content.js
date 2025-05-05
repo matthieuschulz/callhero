@@ -157,6 +157,51 @@ let canUseAriaBasedTranscriptSelector = true
 // === TRANSCRIPT OVERLAY PANEL ===
 let transcriptOverlayDiv = null
 
+// Add zen mode state
+let isZenMode = false;
+
+// Add keyboard shortcut listener
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.key === 'z') {
+    e.preventDefault();
+    toggleZenMode();
+  }
+});
+
+function toggleZenMode() {
+  isZenMode = !isZenMode;
+  const overlay = document.getElementById('windsurf-transcript-overlay');
+  const agendaSidebar = document.getElementById('windsurf-agenda-sidebar');
+  const moodIndicator = document.getElementById('windsurf-mood-indicator');
+  const talkTimeMeter = document.getElementById('windsurf-talk-time-meter');
+  
+  if (overlay) {
+    overlay.style.opacity = isZenMode ? '0' : '1';
+    overlay.style.pointerEvents = isZenMode ? 'none' : 'auto';
+  }
+  if (agendaSidebar) {
+    agendaSidebar.style.opacity = isZenMode ? '0' : '1';
+    agendaSidebar.style.pointerEvents = isZenMode ? 'none' : 'auto';
+  }
+  if (moodIndicator) {
+    moodIndicator.style.opacity = isZenMode ? '0' : '1';
+    moodIndicator.style.pointerEvents = isZenMode ? 'none' : 'auto';
+  }
+  if (talkTimeMeter) {
+    talkTimeMeter.style.opacity = isZenMode ? '0' : '1';
+    talkTimeMeter.style.pointerEvents = isZenMode ? 'none' : 'auto';
+  }
+  
+  // Update zen mode button state
+  const zenButton = document.getElementById('windsurf-zen-button');
+  if (zenButton) {
+    zenButton.innerHTML = isZenMode ? 
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>' :
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>';
+    zenButton.setAttribute('title', isZenMode ? 'Exit Zen Mode (Ctrl+Z)' : 'Enter Zen Mode (Ctrl+Z)');
+  }
+}
+
 function ensureTranscriptOverlay() {
   if (!transcriptOverlayDiv) {
     transcriptOverlayDiv = document.createElement('div')
@@ -164,18 +209,18 @@ function ensureTranscriptOverlay() {
     transcriptOverlayDiv.setAttribute('aria-live', 'polite')
     transcriptOverlayDiv.style.cssText = `
       position: fixed;
-      top: 4%; /* position near very top for minimal visibility */
+      top: 4%;
       left: 50%;
       transform: translateX(-50%);
       min-width: 480px;
       max-width: 80vw;
       min-height: 64px;
       max-height: 60vh;
-      background: rgba(20, 30, 40, 0.60);
+      background: rgba(20, 30, 40, 0.65);
       color: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 32px rgba(0,0,0,0.18);
-      padding: 2rem 2.5rem;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.24);
+      padding: 1.5rem 2rem;
       z-index: 2147483647;
       font-family: 'Google Sans', Roboto, Arial, sans-serif;
       font-size: 1.25rem;
@@ -185,23 +230,54 @@ function ensureTranscriptOverlay() {
       justify-content: center;
       align-items: center;
       pointer-events: auto;
-      opacity: 0.92;
-      transition: opacity 0.2s;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       user-select: text;
       overflow-y: auto;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     `
     transcriptOverlayDiv.innerHTML = `
-      <div style="display:flex;align-items:flex-start;gap:1rem;width:100%;">
-        <span style="margin-top:0.2em;flex-shrink:0;">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f7b731" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.5"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>
-        </span>
+      <div style="display:flex;align-items:flex-start;gap:1.2rem;width:100%;">
+        <div style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;background:rgba(247,183,49,0.15);border-radius:10px;flex-shrink:0;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f7b731" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.5"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>
+        </div>
         <div style="flex:1;">
-          <div style="font-weight:600;font-size:1.18em;color:#fff;margin-bottom:0.3em;letter-spacing:0.01em;">Transcript</div>
-          <div id="windsurf-transcript-text" style="font-size:1.08em;color:#d6d6d6;line-height:1.7;max-width:100%;word-break:break-word;"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <div style="font-weight:600;font-size:1.2em;color:#fff;letter-spacing:0.01em;">Talking Points</div>
+              <div style="width:4px;height:4px;background:rgba(255,255,255,0.3);border-radius:50%;"></div>
+              <div style="font-size:0.9em;color:rgba(255,255,255,0.6);">Live</div>
+            </div>
+            <button id="windsurf-zen-button" onclick="toggleZenMode()" style="
+              background: rgba(255,255,255,0.1);
+              border: none;
+              border-radius: 8px;
+              height: 32px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+              color: rgba(255,255,255,0.85);
+              transition: all 0.2s;
+              padding: 0 16px;
+              font-size: 1em;
+              font-family: 'Google Sans', Roboto, Arial, sans-serif;
+              font-weight: 500;
+            " title="Toggle Zen Mode (Ctrl+Z)">
+              Zen Mode (Ctrl+Z)
+            </button>
+          </div>
+          <div id="windsurf-transcript-text" style="font-size:1.1em;color:rgba(255,255,255,0.9);line-height:1.7;max-width:100%;word-break:break-word;"></div>
         </div>
       </div>
     `
     document.body.appendChild(transcriptOverlayDiv)
+    
+    // Add fade-in animation
+    requestAnimationFrame(() => {
+      transcriptOverlayDiv.style.opacity = '1'
+    })
   }
 }
 
@@ -1268,25 +1344,36 @@ function formatAnswerWithBullets(answer) {
 const windsurfBulletStyle = document.createElement('style');
 windsurfBulletStyle.innerHTML = `
 #windsurf-transcript-overlay ul.windsurf-bullets {
-  margin: 0.5em 0 0.5em 0.8em;
+  margin: 0.75em 0 0.75em 1em;
   padding-left: 1.2em;
-  list-style: disc inside;
-  color: #fff;
-  font-size: 1.15em;
+  list-style: none;
+  color: rgba(255,255,255,0.9);
+  font-size: 1.1em;
   line-height: 1.7;
 }
 #windsurf-transcript-overlay ul.windsurf-bullets li {
-  margin-bottom: 0.25em;
+  margin-bottom: 0.5em;
   padding-left: 0;
   text-indent: 0;
   font-family: "Google Sans", Roboto, Arial, sans-serif;
   background: none;
   border-radius: 0;
   box-shadow: none;
+  position: relative;
+}
+#windsurf-transcript-overlay ul.windsurf-bullets li:before {
+  content: "";
+  position: absolute;
+  left: -1.2em;
+  top: 0.7em;
+  width: 6px;
+  height: 6px;
+  background: #f7b731;
+  border-radius: 50%;
 }
 #windsurf-transcript-overlay div, #windsurf-transcript-overlay ul {
   font-family: "Google Sans", Roboto, Arial, sans-serif;
-  color: #fff;
+  color: rgba(255,255,255,0.9);
 }
 `;
 document.head.appendChild(windsurfBulletStyle);
@@ -2098,56 +2185,8 @@ let talkTimer = null;
 
 // Create talk time meter element
 function createTalkTimeMeter() {
-  const meterContainer = document.createElement('div');
-  meterContainer.id = 'windsurf-talk-meter';
-  meterContainer.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 50px;
-    background: rgba(20, 30, 40, 0.60);
-    color: #fff;
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-family: 'Google Sans', Roboto, Arial, sans-serif;
-    font-size: 14px;
-    z-index: 2147483647;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    border: 1px solid rgba(255,255,255,0.1);
-  `;
-
-  const repTime = document.createElement('div');
-  repTime.id = 'windsurf-rep-time';
-  repTime.style.cssText = `
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  `;
-  repTime.innerHTML = `
-    <span style="color: #4CAF50;">●</span>
-    <span>Rep:</span>
-    <span>00:00</span>
-  `;
-
-  const prospectTime = document.createElement('div');
-  prospectTime.id = 'windsurf-prospect-time';
-  prospectTime.style.cssText = `
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  `;
-  prospectTime.innerHTML = `
-    <span style="color: #F44336;">●</span>
-    <span>Prospect:</span>
-    <span>00:00</span>
-  `;
-
-  meterContainer.appendChild(repTime);
-  meterContainer.appendChild(prospectTime);
-  document.body.appendChild(meterContainer);
-  return meterContainer;
+  // Do nothing (disable creation)
+  return null;
 }
 
 // Format time in MM:SS
@@ -2159,16 +2198,7 @@ function formatTime(seconds) {
 
 // Update talk time meter
 function updateTalkTimeMeter() {
-  const meter = document.getElementById('windsurf-talk-meter') || createTalkTimeMeter();
-  const repTimeElement = meter.querySelector('#windsurf-rep-time span:last-child');
-  const prospectTimeElement = meter.querySelector('#windsurf-prospect-time span:last-child');
-  
-  if (repTimeElement) {
-    repTimeElement.textContent = formatTime(repSpeakingTime);
-  }
-  if (prospectTimeElement) {
-    prospectTimeElement.textContent = formatTime(prospectSpeakingTime);
-  }
+  // Do nothing (disable update)
 }
 
 // Start talk timer for current speaker
@@ -2215,7 +2245,7 @@ function ensureAgendaSidebar() {
     right: 32px;
     width: 320px;
     min-height: 420px;
-    background: #181c1f;
+    background: rgba(20, 30, 40, 0.65);
     color: #fff;
     border-radius: 18px;
     box-shadow: 0 4px 32px rgba(0,0,0,0.18);
@@ -2227,6 +2257,8 @@ function ensureAgendaSidebar() {
     gap: 1.2rem;
     align-items: flex-start;
     opacity: 0.98;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1);
   `;
   document.body.appendChild(agendaSidebar);
   return agendaSidebar;

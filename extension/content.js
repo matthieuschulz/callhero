@@ -277,7 +277,93 @@ function ensureTranscriptOverlay() {
     // Add fade-in animation
     requestAnimationFrame(() => {
       transcriptOverlayDiv.style.opacity = '1'
-    })
+    });
+
+    // === Movable overlay with Option (Alt) + Mouse ===
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let origLeft = 0;
+    let origTop = 0;
+    let pendingDx = 0;
+    let pendingDy = 0;
+    let animationFrameId = null;
+
+    // Set initial position style to allow moving
+    transcriptOverlayDiv.style.position = 'fixed';
+    transcriptOverlayDiv.style.left = '50%';
+    transcriptOverlayDiv.style.top = '4%';
+    transcriptOverlayDiv.style.transform = 'translateX(-50%)';
+    transcriptOverlayDiv.style.transition = 'left 0.08s cubic-bezier(0.4,0,0.2,1), top 0.08s cubic-bezier(0.4,0,0.2,1)';
+
+    function updateOverlayPosition() {
+      transcriptOverlayDiv.style.left = (origLeft + pendingDx) + 'px';
+      transcriptOverlayDiv.style.top = (origTop + pendingDy) + 'px';
+      transcriptOverlayDiv.style.right = '';
+      transcriptOverlayDiv.style.bottom = '';
+      animationFrameId = null;
+    }
+
+    transcriptOverlayDiv.addEventListener('mousedown', function(e) {
+      // Only start drag if Option/Alt is held and left mouse button
+      if ((e.altKey || e.metaKey) && e.button === 0) {
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        // Get current position
+        const rect = transcriptOverlayDiv.getBoundingClientRect();
+        origLeft = rect.left;
+        origTop = rect.top;
+        // Remove transform for direct positioning
+        transcriptOverlayDiv.style.transform = '';
+        transcriptOverlayDiv.style.left = rect.left + 'px';
+        transcriptOverlayDiv.style.top = rect.top + 'px';
+        transcriptOverlayDiv.style.right = '';
+        transcriptOverlayDiv.style.bottom = '';
+        document.body.style.userSelect = 'none';
+        pendingDx = 0;
+        pendingDy = 0;
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener('mousemove', function(e) {
+      if (isDragging) {
+        pendingDx = e.clientX - startX;
+        pendingDy = e.clientY - startY;
+        if (!animationFrameId) {
+          animationFrameId = requestAnimationFrame(updateOverlayPosition);
+        }
+      }
+    });
+
+    window.addEventListener('mouseup', function(e) {
+      if (isDragging) {
+        isDragging = false;
+        document.body.style.userSelect = '';
+        pendingDx = 0;
+        pendingDy = 0;
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
+          animationFrameId = null;
+        }
+      }
+    });
+
+    // Optional: Show cursor change when Option/Alt is held
+    transcriptOverlayDiv.addEventListener('mousemove', function(e) {
+      if (e.altKey || e.metaKey) {
+        transcriptOverlayDiv.style.cursor = 'move';
+      } else {
+        transcriptOverlayDiv.style.cursor = '';
+      }
+    });
+    transcriptOverlayDiv.addEventListener('mouseleave', function(e) {
+      transcriptOverlayDiv.style.cursor = '';
+    });
+
+    // Optional: Tooltip
+    transcriptOverlayDiv.title = 'Hold Option (Alt) and drag to move this panel';
   }
 }
 
@@ -1306,7 +1392,7 @@ async function updateTranscriptOverlay(text) {
       const linkInfo = containsLinkKeyword(lastQuestion);
       if (linkInfo) {
         textDiv.appendChild(createShareLinkButton(linkInfo.url, linkInfo.keyword));
-      }
+       }
     }
     return;
   }

@@ -166,6 +166,13 @@ document.addEventListener('keydown', function(e) {
     e.preventDefault();
     toggleZenMode();
   }
+  // Ctrl+R to reset overlay position
+  if (e.ctrlKey && (e.key === 'r' || e.key === 'R')) {
+    e.preventDefault();
+    if (window.resetTranscriptOverlayPosition) {
+      window.resetTranscriptOverlayPosition();
+    }
+  }
 });
 
 function toggleZenMode() {
@@ -295,6 +302,20 @@ function ensureTranscriptOverlay() {
     transcriptOverlayDiv.style.top = '4%';
     transcriptOverlayDiv.style.transform = 'translateX(-50%)';
     transcriptOverlayDiv.style.transition = 'left 0.08s cubic-bezier(0.4,0,0.2,1), top 0.08s cubic-bezier(0.4,0,0.2,1)';
+
+    // Reset overlay position to original (centered, top 4%)
+    window.resetTranscriptOverlayPosition = function() {
+      transcriptOverlayDiv.style.left = '50%';
+      transcriptOverlayDiv.style.top = '4%';
+      transcriptOverlayDiv.style.transform = 'translateX(-50%)';
+      transcriptOverlayDiv.style.right = '';
+      transcriptOverlayDiv.style.bottom = '';
+      // Visual cue: quick highlight
+      transcriptOverlayDiv.style.boxShadow = '0 0 0 4px #f7b731, 0 8px 32px rgba(0,0,0,0.24)';
+      setTimeout(() => {
+        transcriptOverlayDiv.style.boxShadow = '0 8px 32px rgba(0,0,0,0.24)';
+      }, 300);
+    }
 
     function updateOverlayPosition() {
       transcriptOverlayDiv.style.left = (origLeft + pendingDx) + 'px';
